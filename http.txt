@@ -1,1 +1,154 @@
 1.调用远程接口的几种方法
+1）httpClient
+   a.定义：支持HTTP协议的客户端编程工具包
+   b.特性：
+   c.使用方法
+     1. 创建HttpClient对象。
+     2. 创建请求方法的实例，并指定请求URL。如果需要发送GET请求，创建HttpGet对象；如果需要发送POST请求，创建HttpPost对象。
+     3. 如果需要发送请求参数，可调用HttpGet、HttpPost共同的setParams(HetpParams params)方法来添加请求参数；对于HttpPost对象而言，也可调用setEntity(HttpEntity entity)方法来设置请求参数。
+     4. 调用HttpClient对象的execute(HttpUriRequest request)发送请求，该方法返回一个HttpResponse。
+     5. 调用HttpResponse的getAllHeaders()、getHeaders(String name)等方法可获取服务器的响应头；调用HttpResponse的getEntity()方法可获取HttpEntity对象，该对象包装了服务器的响应内容。程序可通过该对象获取服务器的响应内容。
+     6. 释放连接。无论执行方法是否成功，都必须释放连接
+   d.范例 get---post
+   public static String httpGetData(String url, String charset,boolean isCookies) {
+		String reStr = RCE;
+		GetMethod getMethod = new GetMethod(url);
+		HttpClient httpClient = new HttpClient();
+		if (isCookies) {
+			getMethod.getParams().setParameter("http.protocol.cookie-policy",
+					CookiePolicy.BROWSER_COMPATIBILITY);
+		}
+		try {
+			int statusCode = httpClient.executeMethod(getMethod);
+			if (statusCode == HttpStatus.SC_OK) {
+				reStr = new String(getMethod.getResponseBodyAsString()
+						.getBytes(charset));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return reStr;
+	}
+	//HttpClientParams设置请求参数
+	public static Map<String, String> httpClientStreamGet(String url,int offerId,String token) {
+		String result = RCE;
+		GetMethod getMethod = new GetMethod(url);
+		HttpClient httpClient = new HttpClient();
+		int statusCode = 0;
+		StringBuffer stringBuffer = new StringBuffer();
+		try {
+			HttpClientParams clientParams = new HttpClientParams();
+			clientParams.setSoTimeout(getProcTime(offerId));
+			clientParams.setConnectionManagerTimeout(getConnTime(offerId));
+			clientParams.setContentCharset("UTF-8");
+			getMethod.setRequestHeader("connectapitoken", token);
+			statusCode = httpClient.executeMethod(getMethod);
+			httpClient.setParams(clientParams);
+			if (statusCode == HttpStatus.SC_OK) {
+				BufferedReader br = new BufferedReader(new InputStreamReader(
+						getMethod.getResponseBodyAsStream(),"UTF-8"));
+				String line = null;
+				while ((line = br.readLine()) != null){
+					stringBuffer.append(line);
+				}
+				br.close();
+			}
+			result = stringBuffer.toString();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		Map<String, String> map = new HashMap<String, String>();
+		map.put(RESULT, result);
+		map.put(CODE, statusCode + "");
+		return map;
+	}
+2）HttpURLConnection
+   a.定义：另一种方法
+   b.特性：
+   c.连接详解：a:) HttpURLConnection的connect()函数，只是建立了一个与服务器的tcp连接，并没有实际发送http请求，请求HttpURLConnection的getInputStream()这个函数发送出去。
+               b:) http请求实际上由两部分组成，请求头，请求体
+			       connect()函数会根据HttpURLConnection对象的配置值生成http头部信息，因此在调用connect函数之前，就必须把所有的配置准备好。
+                   在http头后面紧跟着的是http请求的正文，正文的内容是通过outputStream流写入的，存在于内存缓冲区
+                   在getInputStream()函数调用的时候，就会把准备好的http请求正式发送到服务器了，然后返回一个输入流，用于读取服务器对于此次http请求的返回信息	
+                   故：connect()--------->请求头（需要请求头信息）
+                       getInputStream()------>发送请求（需要请求参数）
+  d.范例
+    public static Map<String, String> getdata(String urlStr, String params,int offerId) {
+		HttpURLConnection connection = null;
+		String reStr = RCE;
+		int errorCode = 0;
+		try {
+			URL url = new URL(urlStr);
+			connection = (HttpURLConnection) url.openConnection();
+			connection.setDoOutput(true);
+			connection.setReadTimeout(getProcTime(offerId));
+			connection.setConnectTimeout(getConnTime(offerId));
+			BufferedWriter buffWriter = new BufferedWriter(
+					new OutputStreamWriter(connection.getOutputStream(),
+							"UTF-8"));
+			buffWriter.write(params, 0, params.length());
+			buffWriter.close();
+
+			BufferedReader buffReader = new BufferedReader(
+					new InputStreamReader(connection.getInputStream(), "UTF-8"));
+			String returnData = "";
+			StringBuffer stringBuffer = new StringBuffer();
+			if (connection.getResponseCode() == HttpStatus.SC_OK) {
+				while ((returnData = buffReader.readLine()) != null) {
+					stringBuffer.append(returnData);
+				}
+				reStr = stringBuffer.toString();
+			} else {
+				errorCode = connection.getResponseCode();
+			}
+			buffReader.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (connection != null)
+				connection.disconnect();
+		}
+		Map<String, String> map = new HashMap<String, String>();
+		map.put(RESULT, reStr);
+		map.put(CODE, errorCode + "");
+		return map;
+	}
+3）webservice几种方法
+   3.1)Service
+   a.范例
+     public static String skystarGet(String method,LinkedHashMap<String, String> map) {
+		int code = 0;
+		double now = System.currentTimeMillis();
+		int logId = new Random().nextInt(Constants.MAX_RD_INT)
+				+ Constants.MAX_RD_INT;
+		String dm = BaseImpl.getValue("SKYSTART_REQUEST_URL_NEW");//Constants.SKYSTART_REQUEST_URL_NEW;
+		String u = dm + "/" + method
+				+ getObjects(map);
+		du.writeRequest2ThirdPart(logId, "NEW_SKY_STAR", method, u);
+		String endpoint = dm;
+		Service service = new Service();
+		String result = "";
+		Call call;
+		try {
+			call = (Call) service.createCall();
+			call.setTimeout(getProcTime(Constants.SKYSTAR_OFFER_ID));
+			call.setProperty(Call.CONNECTION_TIMEOUT_PROPERTY,new Integer(getConnTime(Constants.SKYSTAR_OFFER_ID)));
+			call.setTargetEndpointAddress(endpoint);
+			call.setOperationName(new javax.xml.namespace.QName(
+					"http://webservice.main.cmts.cn", method));
+			String[] values = new String[map.size()];
+			int i = 0;
+			for (String key : map.keySet()) {
+				call.addParameter(key, XMLType.XSD_STRING, ParameterMode.IN);
+				values[i++] = map.get(key);
+			}
+			call.setReturnType(XMLType.XSD_STRING);
+			result = (String) call.invoke(values);
+		} catch (Exception e) {
+			e.printStackTrace();
+			code = 408;
+		}
+		du.writeThirdPartResponse(logId, "NEW_SKY_STAR", false, u, method,
+				result, (int) (System.currentTimeMillis() - now), code);
+		return result;
+	}

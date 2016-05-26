@@ -1,0 +1,42 @@
+1.解析XML的几种方法
+1）Jsop
+   a. 一款Java 的HTML解析器，可直接解析某个URL地址、HTML文本内容
+   b.使用方法 Document doc = Jsoup.connect("http://example.com").data("query", "Java").userAgent("Mozilla").cookie("auth", "token").timeout(3000).post();
+   c.范例
+   public static Map<String,Object> post(String method,String param,String url){
+		double now = System.currentTimeMillis();
+		int logId = new Random().nextInt(Constants.MAX_RD_INT) + Constants.MAX_RD_INT;
+		du.writeRequest2ThirdPart(logId, "JINYI", method, url+"?param="+param);
+		Map<String,Object> map = new HashMap<String,Object>();
+		int code = 0; 
+		String msg = "";
+		String result = "SUCCESS";
+		String errorMsg = "";
+		try {
+			Response response  = Jsoup.connect(url).data("param", param.toString()).userAgent("Mozilla")
+				.cookie("auth", "token").ignoreContentType(true).timeout(getConnTime(Constants.JINYI_OFFERR_ID)+getProcTime(Constants.JINYI_OFFERR_ID)).execute();
+			code = response.statusCode();
+			if(code == 200){
+				code = 0;
+				result = response.body();
+				msg = result;
+				Document doc = DocumentHelper.parseText(result);//JSONObject jsonObj=(JSONObject) JSONValue.parse(result);
+				Element root = doc.getRootElement();
+				code  = Integer.parseInt(root.elementText("errcode") == null ? root.element("head").elementText("errCode") : root.elementText("errcode"));
+				errorMsg = root.element("head").elementText("errMsg");
+				result  = root.elementText("errmsg") == null ? root.element("head").elementText("errCode") : root.elementText("errcode");
+				map.put("DOC", doc);
+			}else{
+				result = response.statusMessage();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			code = 1092;
+			result  = RCE;
+		}
+		du.writeThirdPartResponse(logId, "JINYI", true, url+"?"+param, method, msg, (int)(System.currentTimeMillis() - now), code);
+		map.put("MSG", errorMsg);
+		map.put("CODE", code);
+		map.put("RESULT", result);
+		return map;
+	}   

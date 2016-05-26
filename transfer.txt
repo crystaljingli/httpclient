@@ -1,0 +1,9 @@
+1.字符流————————>string
+BufferedReader br = new BufferedReader(new InputStreamReader(
+						inputStream, "utf-8"));
+StringBuffer sb = new StringBuffer();
+String s = "";
+while ((s = br.readLine()) != null) {
+	sb.append(s);
+}
+reStr = sb.toString();
