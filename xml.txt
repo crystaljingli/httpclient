@@ -40,3 +40,5 @@
 		map.put("RESULT", result);
 		return map;
 	}   
+2)SARead：
+  document = new SAXReader().read(new ByteArrayInputStream(documentStr.getBytes("UTF8")));

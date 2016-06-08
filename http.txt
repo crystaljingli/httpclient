@@ -10,6 +10,7 @@
      5. 调用HttpResponse的getAllHeaders()、getHeaders(String name)等方法可获取服务器的响应头；调用HttpResponse的getEntity()方法可获取HttpEntity对象，该对象包装了服务器的响应内容。程序可通过该对象获取服务器的响应内容。
      6. 释放连接。无论执行方法是否成功，都必须释放连接
    d.范例 get---post
+   E1
    public static String httpGetData(String url, String charset,boolean isCookies) {
 		String reStr = RCE;
 		GetMethod getMethod = new GetMethod(url);
@@ -29,6 +30,7 @@
 		}
 		return reStr;
 	}
+	E2
 	//HttpClientParams设置请求参数
 	public static Map<String, String> httpClientStreamGet(String url,int offerId,String token) {
 		String result = RCE;
@@ -60,6 +62,61 @@
 		Map<String, String> map = new HashMap<String, String>();
 		map.put(RESULT, result);
 		map.put(CODE, statusCode + "");
+		return map;
+	}
+	E3
+	public static Map<String, String> httpPost(String url,Map<String,String> paramsMap,String requestBody,String contentType,String token,int connTime,int procTime){
+		Map<String,String> map=new HashMap<String,String>();
+		int status = 0;
+		String msg ="success";
+		String response = "";
+		PostMethod postMethod = null;
+		try {
+			HttpClient client = new HttpClient();
+			//设置超时时间
+			HttpConnectionManagerParams httpConnectionManagerParams=client.getHttpConnectionManager().getParams();
+			//连接超时
+			httpConnectionManagerParams.setConnectionTimeout(connTime);
+			//请求超时
+			httpConnectionManagerParams.setSoTimeout(procTime);
+			postMethod = new PostMethod(url);
+			//请求的参数
+			if(paramsMap!=null){
+			    for(Entry<String,String> entry:paramsMap.entrySet()){
+				    postMethod.setParameter(entry.getKey(), entry.getValue());
+			    }
+			}
+			//请求的密钥
+			if(token!=null){
+			    postMethod.addRequestHeader("connectapitoken", token);
+			}
+			//请求的报文
+			if(requestBody!=null){
+			    postMethod.setRequestEntity(new ByteArrayRequestEntity(requestBody.getBytes()));
+			}
+			//报文体类型
+			if(contentType!=null){
+				 postMethod.addRequestHeader("Content-Type",contentType);
+			}
+			client.executeMethod(postMethod);
+			status=postMethod.getStatusCode();
+			if (status == HttpStatus.SC_OK) {
+				InputStream is = postMethod.getResponseBodyAsStream();
+				BufferedReader br = new BufferedReader(new InputStreamReader(is,"UTF-8"));//字符流编码，防止返回数据乱码
+				response = IOUtils.toString(br);
+			}
+		} catch (URIException e) {
+			msg=e.getMessage();
+			e.printStackTrace();
+		} catch (IOException e) {
+			msg=e.getMessage();
+			e.printStackTrace();
+		} finally {
+			postMethod.releaseConnection();
+		}
+		map.put("STATUS", status+"");
+		map.put("MSG", msg);
+		map.put("RESULT", response);
 		return map;
 	}
 2）HttpURLConnection
